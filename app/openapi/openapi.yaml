@@ -1,0 +1,620 @@
+openapi: 3.0.0
+info:
+  title: primesynth-api
+  description: API for Primesynth 
+  version: 1.0.0
+  termsOfService: https://developer.cimpress.io/legal/api-terms-of-service
+  contact:
+    name: Primesynth
+    email: sam@primesynth.com
+tags:
+  - name: products
+  - name: components
+  - name: system
+servers:
+  - url: /api/v1
+paths:
+  /openapi:
+    get:
+      operationId: openapi
+      summary: Returns the open api document for the available endpoints of this api
+      tags:
+        - system
+      servers:
+        - url: /products
+      responses:
+        '200':
+          description: OK
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /healthcheck:
+    get:
+      operationId: healthCheck
+      summary: Healthcheck for primesynth.io api
+      tags:
+        - system
+      servers:
+        - url: /api
+      responses:
+        '200':
+          description: Service and all of its dependencies are healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Healthcheck'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /products:
+    get:
+      operationId: getProducts
+      summary: Retrieves the list of all the products
+      description: Retrieves a list of products with its associated domainProduct and domain details. Default behavior will return all the products unless overridden by query parameter. Other query parameters (name) allows to filter products based on name. Caller can request for specific attributes by making use of fields parameter.
+      tags: 
+        - products
+      parameters:
+        - $ref: '#/components/parameters/productName'
+        - $ref: '#/components/parameters/productFilterFields'
+        - $ref: '#/components/parameters/paginationOffset'
+        - $ref: '#/components/parameters/paginationLimit'
+      responses:
+        '200':
+          $ref: '#/components/responses/Products'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      operationId: addProduct
+      summary: Add a new product for a domainProduct.
+      description: Add a new product for a domainProduct.
+      tags:
+        - products
+      requestBody:
+        $ref: '#/components/requestBodies/AddProduct'
+      responses:
+        '201':
+          $ref: '#/components/responses/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /products/{productId}:
+    parameters:
+      - $ref: '#/components/parameters/productId'
+    get:
+      operationId: getProductById
+      summary: Get product detail by Id.
+      description: Retrieve a product with all the details along with associated domainProduct and domain details by it's id. By default, this endpoint will returns all the attributes for the products. Caller can request for specific attributes by making use of `fields` parameter.
+      tags:
+        - products
+      parameters:
+        - $ref: '#/components/parameters/productFilterFields'
+        - $ref: '#/components/parameters/includeFields'
+      responses:
+        '200':
+          $ref: '#/components/responses/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    patch:
+      operationId: updateProductById
+      summary: Update product details
+      description: Modifies the basic details of the product, if the caller is authorized.
+      tags:
+        - products
+      requestBody:
+        $ref: '#/components/requestBodies/UpdateProduct'
+      responses:
+        '200':
+          $ref: '#/components/responses/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+components:
+  schemas:
+    ParameterList:
+      type: array
+      items:
+        type: string
+      uniqueItems: true
+    Product:
+      type: object
+      description: Product details
+      required:
+        - name
+        - description
+        - domainProductId
+      properties:
+        id:
+          type: string
+          description: Unique string identifier for the product. These are basically shorter formats of RFC4122 v4-compliant UUIDs.
+          readOnly: true
+        name:
+          type: string
+          description: Unique user friendly display name for the product.
+          minLength: 3
+          maxLength: 128
+        description:
+          type: string
+          description: Description for notes about a product
+          minLength: 10
+          maxLength: 1024
+    ProductHal:
+      type: object
+      description: Product details
+      required:
+        - _link
+        - name
+        - description
+      allOf:
+        - $ref: '#/components/schemas/HalResponseLinks'
+        - $ref: '#/components/schemas/Product'
+    Healthcheck:
+      type: object
+      additionalProperties: false
+      required:
+        - generatedAt
+        - durationInMillis
+        - tests
+      properties:
+        _links:
+          $ref: '#/components/schemas/HalResponseLinks'
+        generatedAt:
+          type: string
+          format: date-time
+        durationInMillis:
+          type: number
+        tests:
+          type: array
+          items:
+            type: object
+    SelfLink:
+      type: object
+      description: Link for retrieving back current resource
+      required:
+        - self
+      properties:
+        self:
+          type: object
+          required:
+            - href
+          properties:
+            href:
+              type: string
+              format: uri
+    HalResponseLinks:
+      type: object
+      description: Links for returning the resources
+      required:
+        - _links
+      properties:
+        _links:
+          $ref: '#/components/schemas/SelfLink'
+    HalListResponseLinks:
+      type: object
+      description: Links for retrieving data from a paginated search endpoint
+      required:
+        - current
+        - first
+      properties:
+        current:
+          type: object
+          description: Link for retrieving the current page of results
+          properties:
+            href:
+              type: string
+              format: uri
+        next:
+          type: object
+          description: Link for retrieving the next page of results based on the next offset, if available
+          properties:
+            href:
+              type: string
+              format: uri
+        first:
+          type: object
+          description: Link for retrieving the first page of results
+          properties:
+            href:
+              type: string
+              format: uri
+    Error:
+      type: object
+      required:
+        - status
+        - title
+        - detail
+        - _links
+      properties:
+        status:
+          type: integer
+          description: HTTP error code
+        title:
+          type: string
+          description: title field to be a lowerCamelCase name of the error
+        detail:
+          type: string
+          description: human readable message that explain why an error have occurred, and provide a solution so users can fix the problem (if applicable)
+        _links:
+          type: object
+          description: Links for retrieving relevant resources
+          required:
+            - type
+          properties:
+            type:
+              type: object
+              description: Link for retrieving information about error type
+              properties:
+                href:
+                  type: string
+                  format: uri
+    ProductFilterFields:
+      type: array
+      items:
+        type: string
+        enum: ['name', 'description', 'domainProduct' , 'domain'] 
+      uniqueItems: true
+  parameters:
+    productName:
+      name: name
+      in: query
+      description: Filters product list with specified product name. This parameter will perform a case insensitive like search from the product list.
+      required: false
+      schema:
+        type: string
+    products:
+      name: products
+      in: query
+      description: Filters component list with specified associated products, this optional parameter accepts comma separated product id values.
+      required: false
+      explode: false
+      schema:
+        $ref: '#/components/schemas/ParameterList'
+    productIds:
+      name: productIds
+      in: query
+      description: Filters component list with specified associated products, this optional parameter accepts comma separated product Ids.
+      required: false
+      explode: false
+      schema:
+        $ref: '#/components/schemas/ParameterList'
+    resourceTypes:
+      name: resourceTypes
+      in: query
+      description: Filters domain list with specified resourceTypes, this optional parameter accepts comma separated resourceType values.
+      required: false
+      explode: false
+      schema:
+        $ref: '#/components/schemas/ParameterList'
+    componentId:
+      name: componentId
+      in: path
+      description: Id for the component to be retrieved or acted upon
+      required: true
+      schema:
+        type: string
+    productId:
+      name: productId
+      in: path
+      description: Id for the product to be retrieved or acted upon
+      required: true
+      schema:
+        type: string
+    includeFields:
+      name: includeFields
+      in: query
+      description: An option parameter indicating whether to include/exclude attributes from response based on `fields` parameter. By default, it will include the attributes specified.
+      required: false
+      schema:
+        type: boolean
+    productFilterFields:
+      name: fields
+      in: query
+      description: An option parameter indicating attributes to return. This parameter accepts comma-separated list of value i.e. `name`, `description`. This parameter overrides the default behavior to return all the attributes.
+      required: false
+      explode: false
+      schema:
+        $ref: '#/components/schemas/ProductFilterFields'
+    paginationOffset:
+      name: offset
+      in: query
+      description: An optional parameter for retrieving the next page of items from a paginated search endpoint.
+      required: false
+      schema:
+        type: string
+    paginationLimit:
+      name: limit
+      in: query
+      description: An optional parameter specifying the maximum number of items to return from a paginated search endpoint.
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+  requestBodies:
+    AddProduct:
+      description: Details with which a product should be added.
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Product'
+              - type: object
+                properties:
+                  domainProductId:
+                    type: string
+                    description: DomainProduct identifier to associate the product with.
+                    minLength: 22
+    UpdateProduct:
+      description: Basic details of products which can be updated. All fields are optional.
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+                description: Unique user friendly display name for a product.
+                minLength: 3
+                maxLength: 128
+              description:
+                type: string
+                description: Text description for notes about a product.
+                minLength: 10
+                maxLength: 1024
+              domainProductId:
+                type: string
+                description: DomainProduct identifier to associate the product with.
+                minLength: 22
+  responses:
+    Products:
+      description: List of all products with all the associated details, response will be returned as per specified query parameters or else all the products will be returned.
+      content:
+        application/hal+json:
+          schema:
+            type: object
+            description: HAL-formatted response for list of products.
+            required:
+              - _links
+              - _embedded
+              - count
+            properties:
+              count:
+                type: integer
+                description: The number of results returned in the response
+              _links:
+                $ref: '#/components/schemas/SelfLink'
+              _embedded:
+                type: object
+                properties:
+                  products:
+                    type: array
+                    description: List of products
+                    items:
+                      allOf:
+                        - $ref: '#/components/schemas/ProductHal'
+                        - type: object
+                          properties:
+                            domain:
+                              type: object
+                              description: Domain with which the product is associated.
+                              properties:
+                                _links:
+                                  $ref: '#/components/schemas/SelfLink'
+                                id:
+                                  type: string
+                                  description: Unique string identifier for the domain. These are basically shorter formats of RFC4122 v4-compliant UUIDs.
+                                name:
+                                  type: string
+                                  description: Unique user friendly display name for a domain.
+                                description:
+                                  type: string
+                                  description: Description for notes about a domain
+                            domainProduct:
+                              type: object
+                              description: DomainProduct with which the product is associated.
+                              properties:
+                                _links:
+                                  $ref: '#/components/schemas/SelfLink'
+                                id:
+                                  type: string
+                                  description: Unique string identifier for the domainProduct. These are basically shorter formats of RFC4122 v4-compliant UUIDs.
+                                name:
+                                  type: string
+                                  description: Unique user friendly display name for a domainProduct.
+                                description:
+                                  type: string
+                                  description: Description for notes about a domainProduct
+                        
+        application/json:
+          schema:
+            type: object
+            description: Response for list of products.
+            properties:
+              products:
+                type: array
+                description: List of products
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/Product'
+                    - type: object
+                      properties:
+                        domain:
+                          description: Domain with which the product is associated.
+                          properties:
+                            id:
+                              type: string
+                              description: Unique string identifier for the domain. These are basically shorter formats of RFC4122 v4-compliant UUIDs.
+                            name:
+                              type: string
+                              description: Unique user friendly display name for a domain.
+                            description:
+                              type: string
+                              description: Description for notes about a domain
+                        domainProduct:
+                          description: DomainProduct with which the product is associated.
+                          properties:
+                            id:
+                              type: string
+                              description: Unique string identifier for the domainProduct. These are basically shorter formats of RFC4122 v4-compliant UUIDs.
+                            name:
+                              type: string
+                              description: Unique user friendly display name for a domainProduct.
+                            description:
+                              type: string
+                              description: Description for notes about a domainProduct
+    Product:
+      description: Details of a product
+      content:
+        application/hal+json:
+          schema:
+            type: object
+            description: HAL-formatted response for a product.
+            required:
+              - _links
+              - id
+              - name
+              - description
+            allOf:
+              - $ref: '#/components/schemas/ProductHal'
+              - type: object
+                properties:
+                  domain:
+                    description: Domain with which the product is associated.
+                    properties:
+                      _links:
+                        $ref: '#/components/schemas/SelfLink'
+                      id:
+                        type: string
+                        description: Unique string identifier for the domain. These are basically shorter formats of RFC4122 v4-compliant UUIDs.
+                      name:
+                        type: string
+                        description: Unique user friendly display name for a domain.
+                      description:
+                        type: string
+                        description: Description for notes about a domain
+                  domainProduct:
+                    type: object
+                    description: DomainProduct with which the product is associated.
+                    properties:
+                      _links:
+                        $ref: '#/components/schemas/SelfLink'
+                      id:
+                        type: string
+                        description: Unique string identifier for the domainProduct. These are basically shorter formats of RFC4122 v4-compliant UUIDs.
+                      name:
+                        type: string
+                        description: Unique user friendly display name for a domainProduct.
+                      description:
+                        type: string
+                        description: Description for notes about a domainProduct
+        application/json:
+          schema:
+            type: object
+            description: Product details
+            required:
+              - id
+              - name
+              - description
+            allOf:
+              - $ref: '#/components/schemas/Product'
+              - type: object
+                properties:
+                  domain:
+                    description: Domain with which the product is associated.
+                    properties:
+                      id:
+                        type: string
+                        description: Unique string identifier for the domain. These are basically shorter formats of RFC4122 v4-compliant UUIDs.
+                      name:
+                        type: string
+                        description: Unique user friendly display name for a domain.
+                      description:
+                        type: string
+                        description: Description for notes about a domain
+                  domainProduct:
+                    type: object
+                    description: DomainProduct with which the product is associated.
+                    properties:
+                      id:
+                        type: string
+                        description: Unique string identifier for the domainProduct. These are basically shorter formats of RFC4122 v4-compliant UUIDs.
+                      name:
+                        type: string
+                        description: Unique user friendly display name for a domainProduct.
+                      description:
+                        type: string
+                        description: Description for notes about a domainProduct
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthenticated:
+      description: Not authenticated
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Not authorized/Forbidden to perform the action
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: The specified resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: The specified resource already exists
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unprocessable:
+      description: Cannot process request because the supplied values are semantically invalid for the data contract
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalServerError:
+      description: Internal Server Error; cannot process the request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    DependancyError:
+      description: Error occured in an associated depedancy
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: Service or some of its dependencies are unhealthy
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Healthcheck'
