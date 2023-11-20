@@ -474,17 +474,14 @@ module.exports = () => {
       //   JOIN products_cte cte ON p.id = cte.id
       //   ORDER BY cte.sort_id DESC`
       
-      const sql = `SELECT * FROM products`
-      console.log(sql);
+      const sql = `SELECT * FROM products where is_deleted=false LIMIT 1 OFFSET 0`
       const res = await query(sql)
-      console.log("res", res);
-      // const results = joinjs.map(res.rows, productResultMap, 'products')
-      return {}
-      // return {
-      //   results,
-      //   nextOffset: results.length >= limit ? { sortId: get(last(res.rows), 'sort_id') } : undefined,
-      //   count: results.length
-      // }
+      const results = joinjs.map(res.rows, productResultMap, 'products')
+      return {
+        results,
+        nextOffset: results.length >= limit ? { sortId: get(last(res.rows), 'sort_id') } : undefined,
+        count: results.length
+      }
     } catch (err) {
       if (err instanceof DomainsAPIError) throw err
       throw new DependencyError('An error occurred while retrieving products from the database.', err.stack)
@@ -803,19 +800,7 @@ module.exports = () => {
 
   const productResultMap = [{
     mapId: 'products',
-    properties: ['id', 'name', 'description', 'is_active', 'created_at', 'last_modified_at', 'is_system_generated'],
-    associations: [
-      { name: 'domainProduct', mapId: 'domainProduct', columnPrefix: 'domain_product_' },
-      { name: 'domain', mapId: 'domain', columnPrefix: 'domain_' }
-    ]
-  }, {
-    mapId: 'domainProduct',
-    idProperty: 'id',
-    properties: ['id', 'name', 'description']
-  }, {
-    mapId: 'domain',
-    idProperty: 'id',
-    properties: ['id', 'name', 'description']
+    properties: ['id', 'name', 'cat_no', 'cas_no', 'mol_formula', 'mol_weight', 'inv_status', 'is_deleted', 'created_by', 'created_at', 'updated_by', 'updated_at'],
   }]
 
   const componentResultMap = [{

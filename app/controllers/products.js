@@ -1,6 +1,11 @@
 const { Router } = require('express');
-const { omit, isEmpty, result } = require('lodash');
-const halson = require('halson')
+const { omit, isEmpty, assign, result } = require('lodash');
+const querystring = require('querystring')
+const halson = require('halson');
+const { off } = require('process');
+const { BadRequestError, ForbiddenError } = require('../utils/errors');
+const { log } = require('console');
+
 
 
 module.exports = (logger, validator, pgClient) => {
@@ -9,32 +14,36 @@ module.exports = (logger, validator, pgClient) => {
 
     const getProduct = async (req, res, next) => {
         try {
-            const { limit = 50 } = req.body
-            console.log(req.body);
+            const { limit = 1 } = req.body
+
+            console.log(req.query.offset);
             let offset
             try {
-              const decodedOffset = req.body.offset ? Buffer.from(req.body.offset, 'base64').toString('utf8') : undefined
+              const decodedOffset = req.query.offset ? Buffer.from(req.query.offset, 'base64').toString('utf8') : undefined
+              console.log(decodedOffset, Buffer.from(req.query.offset, 'base64').toString('utf8'));
               if (decodedOffset) offset = JSON.parse(decodedOffset)
+              console.log('offset', decodedOffset, offset);
             } catch (err) {
               throw new BadRequestError('Error while validating request: request.query.offset is invalid')
             }
       
             const { results: products, count, nextOffset } = await pgClient.getProducts(req.body, limit, offset)
       
-            console.log(results);
+            console.log(products, count, nextOffset);
             const encodedOffset = nextOffset ? Buffer.from(JSON.stringify(nextOffset)).toString('base64') : undefined
             const firstQueryParams = omit(req.query, ['offset'])
       
             const halResponse = halson({ count: count || 0 })
               .addLink('current', `${urlPrefix}${req.originalUrl}`)
               .addLink('first', `${urlPrefix}/api/v1/products${isEmpty(firstQueryParams) ? '' : `?${querystring.stringify(firstQueryParams)}`}`)
-      
+            
+              console.log('nextOffset', nextOffset);
             if (nextOffset) {
               const nextQuery = assign({}, req.query, { offset: encodedOffset })
               halResponse.addLink('next', `${urlPrefix}/api/v1/products?${querystring.stringify(nextQuery)}`)
             }
       
-            // halResponse.addEmbed('products', products.map(product => productToHal(includeExcludeFields(product, req.query))))
+            halResponse.addEmbed('products', products.map(product => productToHal(includeExcludeFields(product, req.query))))
       
             return res.status(200).send(halResponse)
           }  catch (err) {
@@ -45,19 +54,20 @@ module.exports = (logger, validator, pgClient) => {
     const productToHal = (product) => {
         const halResponse = halson(product)
         if (product) {
-          halResponse.addLink('self', `${urlPrefix}/api/v1/products/${product.id}`)
-    
-          if (product.domainProduct) {
-            halResponse.domainProduct = halson(product.domainProduct)
-              .addLink('self', `${urlPrefix}/api/v1/domainProducts/${product.domainProduct.id}`)
-          }
-    
-          if (product.domain) {
-            halResponse.domain = halson(product.domain)
-              .addLink('self', `${urlPrefix}/api/v1/domains/${product.domain.id}`)
-          }
+          halResponse.addLink('self', `${urlPrefix}/api/v1/product/${product.id}`)
         }
         return halResponse
+    }
+
+    const includeExcludeFields = (product, queryParams = {}) => {
+      const { fields, includeFields = true } = queryParams
+      product = omit(product, ['is_deleted', 'created_at', 'created_by', 'updated_by', 'updated_at'])
+  
+      if (!isEmpty(fields)) {
+        product = includeFields ? pick(product, ['id', ...fields]) : omit(product, fields)
+      }
+  
+      return product
     }
 
     const router = Router()

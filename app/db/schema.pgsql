@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS products (
     created_at timestamp with time zone NOT NULL,
     updated_by varchar(255),
     updated_at timestamp with time zone
-)
+);
 
 INSERT INTO products (id, name, cat_no, cas_no, mol_formula, mol_weight, inv_status, is_deleted, created_by, created_at)
 VALUES ( 1, 'Abacavir Sulfate', 'SZ-A049001', '188062-50-2', 'C14H18N6O : 1/2(H2SO4)', '286.3', 'Custom Synthesis', false, 'samprasdsouza@test.com', '2015-05-20'); 
