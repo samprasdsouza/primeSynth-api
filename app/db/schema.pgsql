@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS products (
     mol_weight varchar(255) NOT NULL,
     inv_status varchar(255) NOT NULL,
     is_deleted boolean DEFAULT false,
+    image_link varchar(255) NOT NULL,
     created_by varchar(255) NOT NULL,
     created_at timestamp with time zone NOT NULL,
     updated_by varchar(255),

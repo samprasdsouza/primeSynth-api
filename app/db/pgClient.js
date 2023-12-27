@@ -9,6 +9,7 @@ const { query } = require('./dataAccess')
 const { ERROR_CODE_MAP, TAXONOMY: { DOMAIN, DOMAINPRODUCT, PRODUCT, COMPONENT } } = require('../utils/constants')
 const { DependencyError, NotFoundError, BadRequestError, DomainsAPIError } = require('../utils/errors')
 const { log } = require('winston')
+const { off } = require('..')
 
 const toDTO = (row) => ({
   id: row.id,
@@ -446,40 +447,14 @@ module.exports = () => {
 
   async function getProducts (reqQuery, limit, offset) {
     try {
-      const { name, includeFields = true, fields } = reqQuery
-      const filters = []
-      const params = []
-      let paramIndex = 2
-      params.push(limit)
-
-      if (name) {
-        filters.push(`p.slug_name LIKE $${paramIndex++}`)
-        params.push(`%${slug(name)}%`)
-      }
-
-      if (offset) {
-        params.push(offset.sortId)
-      }
-      // const sql = `
-      //   WITH products_cte AS (${getProductsQuery(includeFields, fields)} 
-      //   ${filters.length > 0 ? ' AND ' + filters.join(' AND ') : ''}
-      //   )
-      //   SELECT * FROM 
-      //   (SELECT DISTINCT id AS id, sort_id
-      //     FROM products_cte 
-      //     ${offset ? `WHERE sort_id < $${paramIndex++}` : ''}
-      //     ORDER BY sort_id DESC
-      //     LIMIT $1
-      //   ) p
-      //   JOIN products_cte cte ON p.id = cte.id
-      //   ORDER BY cte.sort_id DESC`
-      
-      const sql = `SELECT * FROM products where is_deleted=false LIMIT 1 OFFSET 0`
+      const sql = `SELECT * FROM products where is_deleted=false LIMIT 50 OFFSET ${offset.sortId || 1}`
       const res = await query(sql)
       const results = joinjs.map(res.rows, productResultMap, 'products')
+      let prevPage = Number(get(last(res.rows), 'id', '0')) - 100
       return {
         results,
-        nextOffset: results.length >= limit ? { sortId: get(last(res.rows), 'sort_id') } : undefined,
+        nextOffset: results.length >= limit ? { sortId: get(last(res.rows), 'id') } : undefined,
+        prevOffset: { sortId: prevPage < 1 ? 1: prevPage },
         count: results.length
       }
     } catch (err) {
@@ -519,9 +494,9 @@ module.exports = () => {
   async function getProductById (productId, queryParams = {}) {
     const { includeFields = true, fields } = queryParams
     try {
-      const sql = `${getProductsQuery(includeFields, fields)} AND p.id = $1 `
+      const sql = `select * from products where id = $1 `
       const res = await query(sql, [productId])
-
+      console.log(sql, res);
       if (res.rows.length === 0) {
         throw new NotFoundError(`Unable to find product with id '${productId}'`)
       }
