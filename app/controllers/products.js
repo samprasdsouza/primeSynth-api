@@ -1,12 +1,10 @@
 const { Router } = require('express');
-const { omit, isEmpty, assign, result } = require('lodash');
+const { omit, isEmpty, assign, result, get } = require('lodash');
 const querystring = require('querystring')
 const halson = require('halson');
 const { off } = require('process');
 const { BadRequestError, ForbiddenError } = require('../utils/errors');
 const { log } = require('console');
-
-
 
 module.exports = (logger, validator, pgClient) => {
     const urlPrefix = 'http://localhost:3500'
@@ -54,6 +52,7 @@ module.exports = (logger, validator, pgClient) => {
 
     const getProductById = async(req, res, next) => {
       try {
+        console.log('here');
         const { productId } = req.params
         console.log('productId', productId);
         const product = await pgClient.getProductById(productId, req.query) 
@@ -63,6 +62,18 @@ module.exports = (logger, validator, pgClient) => {
         next(err)
       }
     }
+
+    const getTest = async (req, res, next) => {
+      try {
+          console.log('testing the value', req.body); 
+          const productId = get(req.body, ['productId'], '')
+          const product = await pgClient.getProductById(productId) 
+
+          return res.status(200).send(productToHal(includeExcludeFields(product)))
+        }  catch (err) {
+          return next(err);
+      }
+  }
 
     const productToHal = (product) => {
         const halResponse = halson(product)
@@ -86,9 +97,10 @@ module.exports = (logger, validator, pgClient) => {
     const router = Router()
     router.route('/')
       .get(validator.validate('get', '/products'), getAllProduct)
-
-    router.route('/:productId')
-      .get(validator.validate('get', '/products/{productId}', getProductById))
+    
+    router.route('/productId')
+      .get(validator.validate('get', '/productId'), getTest)
+    
 
     return {
         getAllProduct,

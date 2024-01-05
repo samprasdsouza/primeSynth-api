@@ -491,8 +491,7 @@ module.exports = () => {
     }
   }
 
-  async function getProductById (productId, queryParams = {}) {
-    const { includeFields = true, fields } = queryParams
+  async function getProductById (productId) {
     try {
       const sql = `select * from products where id = $1 `
       const res = await query(sql, [productId])

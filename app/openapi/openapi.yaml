@@ -86,42 +86,16 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalServerError'
-  /products/{productId}:
-    parameters:
-      - $ref: '#/components/parameters/productId'
+  /productId:
     get:
-      operationId: getProductById
-      summary: Get product detail by Id.
-      description: Retrieve a product with all the details along with associated domainProduct and domain details by it's id. By default, this endpoint will returns all the attributes for the products. Caller can request for specific attributes by making use of `fields` parameter.
-      tags:
+      operationId: getTest
+      summary: Retrieves the list of all the products
+      description: Retrieves a list of products with its associated domainProduct and domain details. Default behavior will return all the products unless overridden by query parameter. Other query parameters (name) allows to filter products based on name. Caller can request for specific attributes by making use of fields parameter.
+      tags: 
         - products
-      parameters:
-        - $ref: '#/components/parameters/productFilterFields'
-        - $ref: '#/components/parameters/includeFields'
       responses:
         '200':
-          $ref: '#/components/responses/Product'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-    patch:
-      operationId: updateProductById
-      summary: Update product details
-      description: Modifies the basic details of the product, if the caller is authorized.
-      tags:
-        - products
-      requestBody:
-        $ref: '#/components/requestBodies/UpdateProduct'
-      responses:
-        '200':
-          $ref: '#/components/responses/Product'
-        '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/responses/Products'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
